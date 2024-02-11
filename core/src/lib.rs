@@ -12,3 +12,5 @@ mod tests {
         assert_eq!(result, 4);
     }
 }
+
+pub fn store_event() {}
