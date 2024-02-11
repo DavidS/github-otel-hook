@@ -3,8 +3,25 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use tracing::instrument;
+use std::fmt::Debug;
+use tracing::{error, info, instrument};
 use tracing_subscriber::fmt::format::FmtSpan;
+
+trait WithHttpStatus<T, E> {
+    fn with_http_status(self, code: StatusCode) -> Result<T, StatusCode>;
+}
+
+impl<T, E> WithHttpStatus<T, E> for Result<T, E>
+where
+    E: Debug,
+{
+    fn with_http_status(self, code: StatusCode) -> Result<T, StatusCode> {
+        self.map_err(|e| {
+            error!(?e, status = ?code, "error");
+            code
+        })
+    }
+}
 
 #[instrument(level = "info")]
 async fn index() -> String {
@@ -14,14 +31,21 @@ async fn index() -> String {
 
 #[instrument(level = "info")]
 async fn webhook(headers: HeaderMap) -> Result<String, StatusCode> {
-    if let Some(evt) = headers.get("X-GitHub-Event") {
-        return evt
-            .to_str()
-            .map(|s| s.to_string())
-            .map_err(|_| StatusCode::BAD_REQUEST);
+    if let Some(evt) = headers.get("x-github-event") {
+        let evt_name = evt.to_str().with_http_status(StatusCode::BAD_REQUEST)?;
+        match evt_name {
+            "pull_request" => {
+                info!("received PR hook");
+            }
+            _ => {
+                error!("balls");
+            }
+        }
+        return Ok("foo".to_string());
+    } else {
+        error!("missing X-GitHub-Event header");
+        Err(StatusCode::BAD_REQUEST)
     }
-
-    Err(StatusCode::BAD_REQUEST)
 }
 
 #[tokio::main]
