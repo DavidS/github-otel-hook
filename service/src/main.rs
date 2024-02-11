@@ -1,4 +1,5 @@
 use axum::{
+    body::Bytes,
     http::{HeaderMap, StatusCode},
     routing::{get, post},
     Router,
@@ -30,12 +31,16 @@ async fn index() -> String {
 }
 
 #[instrument(level = "info")]
-async fn webhook(headers: HeaderMap) -> Result<String, StatusCode> {
+async fn webhook(headers: HeaderMap, body: Bytes) -> Result<String, StatusCode> {
     if let Some(evt) = headers.get("x-github-event") {
         let evt_name = evt.to_str().with_http_status(StatusCode::BAD_REQUEST)?;
         match evt_name {
             "pull_request" => {
                 info!("received PR hook");
+                let evt_data: github_webhook::payload_types::PullRequestEvent =
+                    serde_json::from_slice(&body).with_http_status(StatusCode::BAD_REQUEST)?;
+
+                info!(?evt_data)
             }
             _ => {
                 error!("balls");
