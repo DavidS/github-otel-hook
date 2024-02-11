@@ -30,11 +30,18 @@ async fn index() -> String {
     String::from("homepage")
 }
 
-#[instrument(level = "info")]
+#[instrument(level = "info", skip_all)]
 async fn webhook(headers: HeaderMap, body: Bytes) -> Result<String, StatusCode> {
     if let Some(evt) = headers.get("x-github-event") {
         let evt_name = evt.to_str().with_http_status(StatusCode::BAD_REQUEST)?;
         match evt_name {
+            "ping" => {
+                info!("received ping hook");
+                let evt_data: github_webhook::payload_types::PingEvent =
+                    serde_json::from_slice(&body).with_http_status(StatusCode::BAD_REQUEST)?;
+
+                info!(?evt_data)
+            }
             "pull_request" => {
                 info!("received PR hook");
                 let evt_data: github_webhook::payload_types::PullRequestEvent =
