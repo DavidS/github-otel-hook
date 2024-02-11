@@ -1,13 +1,19 @@
 use axum::{routing::get, Router};
+use tracing::instrument;
+use tracing_subscriber::fmt::format::FmtSpan;
 
+#[instrument(level = "info")]
 async fn index() -> String {
+    tracing::info!("inside index!");
     String::from("homepage")
 }
 
 #[tokio::main]
 async fn main() {
     // initialize tracing
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .init();
 
     // build our application with a route
     let app = Router::new()
